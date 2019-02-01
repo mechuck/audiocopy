@@ -4,7 +4,7 @@
 
 massDis = ['Sat 5pm', 'Sun 8:30am', 'Sun 11am', 'Sun 5pm']
 
-massFile = ['sat-5pm', 'sun-830am', 'sun-11am', 'sun5pm']
+massFile = ['sat-5pm', 'sun-830am', 'sun-11am', 'sun-5pm']
 
 mass = [massDis, massFile]
 

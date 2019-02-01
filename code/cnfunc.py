@@ -72,9 +72,6 @@ def menuSelectFileSave(event = None):
     print("Save Mass Info initiated...")
 
 # **** RUN Menu Items
-def runCopy(event = None):
-    print("Running Copy Command...")
-
 def runDelete(event = None):
     print("Running Delete Command...")
 

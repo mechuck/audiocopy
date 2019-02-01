@@ -15,8 +15,10 @@ import datetime
 import cnfunc as cnf
 import homilists as hom
 import masses as mas
+import shelve
 
 root = Tk()
+directories = []
 
 class formLoad:
 
@@ -38,7 +40,7 @@ class formLoad:
         self.style.configure('TCombobox', font = ('Arial', 12))
 
         # Get Applications Settings
-        self.getAppSettings()
+        self.loadSettings()
 
         # Create Window Widgets
         self.createMenu(master)
@@ -49,22 +51,21 @@ class formLoad:
     # ****************************************************
     # ***                App Settings                  ***
     # ****************************************************
-    def getAppSettings(self):
-        # load application settings from settings.ini
-        with open('settings.ini') as settingfile:
-            readFile = csv.reader(settingfile, delimiter=';')
-            settings = {}
-            for row in readFile:
-                a1 = row[0].rstrip()
-                a2 = row[1].lstrip()
-                settings[a1] = a2
-
-        # set Import folder
+    def loadSettings(self):
+        # This will load the application settings from a shelve file.
+        global directories
+        settings = shelve.open('settings')
+        # load import folder
         self.importFolder = settings['import']
-        self.libraryFolder = settings['library']
+        # Load Export folder
+        self.exportFolder = settings['export']
+        # load directories
+        dir1 = settings['dir1']
+        dir2 = settings['dir2']
+        dir3 = settings['dir3']
+        directories = [dir1, dir2, dir3]
+        settings.close()
 
-        # print("Import: " + self.importFolder)
-        # print("Library: " + self.libraryFolder)
 
     # ****************************************************
     # ***            Create Window Widgets             ***
@@ -77,7 +78,7 @@ class formLoad:
         # Elements in the topbar
         ttk.Label(self.frame_topbar, text = " ").grid(row = 0, column = 0)
         ttk.Label(self.frame_topbar, text = 'Card Location').grid(row = 1, column = 0, columnspan = 1)
-        self.lbl_cardlocation = ttk.Label(self.frame_topbar, text = "F:/Music")
+        self.lbl_cardlocation = ttk.Label(self.frame_topbar, text = self.importFolder)
         self.lbl_cardlocation.grid(row = 2, column = 0, columnspan = 2, padx = 20)
         # Button "Check Card"
         self.btn_checkcard = ttk.Button(self.frame_topbar, text = 'Check Card',
@@ -166,8 +167,10 @@ class formLoad:
         master.bind('<Control-d>', cnf.runDelete)
 
         # Edit Menu Items
-        self.edit.add_command(label = "Import Directory")
-        self.edit.add_command(label = "Library Directory")
+        self.edit.add_command(label = "Import Directory",
+                            command = self.mnuImportDirectory)
+        self.edit.add_command(label = "Library Directory",
+                            command = self.mnuExportDirectory)
         self.edit.add_separator()
         self.edit.add_command(label = "Homily Filenaming Template")
         self.edit.add_command(label = "Mass Filenaming Template")
@@ -277,6 +280,28 @@ class formLoad:
         # Call the createBodyCanvas to create list of files.
         self.createBodyCanvas(filelist)
 
+    def saveFilenameTextFile(self):
+        # Saves the actual filenames text file out to a file
+        # Format the contents of the file
+        textFileContents = ["Filename List\n"]
+        textFileContents.append("-------------------------\n")
+        textFileContents.append("\n")
+        textFileContents.append(self.dateSaturday)
+        textFileContents.append(self.dateSunday)
+        textFileContents.append("\n")
+        for mline in self.recordFilenamesMass:
+            textFileContents.append(mline)
+        textFileContents.append("\n")
+        for hline in self.recordFilenamesHomily:
+            textFileContents.append(hline)
+        # Setup file name to write
+        filename = self.capturePath + "filenames.txt"
+        # Open file to write
+        file = open(filename, "x")
+        for contentLine in textFileContents:
+            file.write(contentLine)
+        file.close()
+
     def runCopyFiles(self, event = None):
         # Starts the process of copying files over, but first
         # Test if the user has check the card for files, which therefore would
@@ -288,20 +313,24 @@ class formLoad:
             # Break out of this function as nothing else can be done without checking
             # the card first.
             return
-        else:
-            # User has already clicked on the Check Card.
-            print("Card Already Checked...")
+        # else:
+        #
+        #     # User has already clicked on the Check Card.
+        #     # print("Card Already Checked...")
         self.folderLibCreated = False
         testImport = False
         file_num = 0
         files = self.filelist
-        print(files)
+        self.recordFilenamesMass = []
+
+        self.recordFilenamesHomily = []
+        # print(files)
         for x in files:
             # file_num = file_num + 1
 
-            print(self.filelist[file_num])
+            # print(self.filelist[file_num])
             if self.checkboxval[file_num + 1].get() == 1:
-                print('File Selected')
+                # print('File Selected')
 
                 dm = cnf.getMonthFromText(self.month.get())
 
@@ -325,9 +354,9 @@ class formLoad:
                 else:
                     fsat = str(dd - 1)
                     fsdt = dm + "-" + fsat + "-" + dy
-                print("<<< Import Notes for copy>>")
-                print("Date: " + fdt)
-                print("File to be imported: " + files[file_num])
+                # print("<<< Import Notes for copy>>")
+                # print("Date: " + fdt)
+                # print("File to be imported: " + files[file_num])
                 if smass == "Sat 5pm":
                     massFileName =  "smk_Mass_" + fsdt + "_" + fmass + ".wav"
                 else:
@@ -340,22 +369,31 @@ class formLoad:
                     fileH = "smk_Homily_" + fdt + "_" + fmass + "_" + fclergy + ".wav"
                     self.homilyEntry[file_num + 1].delete(0, END)
                     self.homilyEntry[file_num + 1].insert(0, fileH)
+                # Record Dates in Filename Text File
+                self.dateSaturday = "Saturday: " + fsdt + "\n"
+                self.dateSunday = "Sunday: " + fdt + "\n"
                 # Create Directories
-                libPath = self.libraryFolder
-                print("----->>" + str(self.folderLibCreated))
+                libPath = self.exportFolder
+                # print("----->>" + str(self.folderLibCreated))
                 if self.folderLibCreated != True:
                     self.capturePath = directoryCreate(libPath, fdt)
                     self.folderLibCreated = True
-                print(self.capturePath)
-                print("----->>>>" + str(self.folderLibCreated))
+                # print(self.capturePath)
+                # print("----->>>>" + str(self.folderLibCreated))
                 src = self.importFolder + "/" + self.filelist[file_num]
                 dst = self.capturePath + massFileName
-                shutil.copyfile(src, dst)
+                # TODO: Uncomment the following line to actually copy files.
+                # shutil.copyfile(src, dst)
+                # Write out filenames
+                self.recordFilenamesMass.append(massFileName + "\n")
+                self.recordFilenamesHomily.append(fileH + "\n")
             else:
-                print('File Not Selected')
-            print("----------------------")
+                continue
+                # print('File Not Selected')
+            # print("----------------------")
             file_num = file_num + 1
 
+        self.saveFilenameTextFile()
 
     def menuSelectResetForm(self, event = None):
         if self.iQuite == False:
@@ -366,15 +404,40 @@ class formLoad:
         global root
         root.quit()
 
+    def mnuImportDirectory(self):
+        # Set the import directory
+        directory = filedialog.askdirectory()
+        # update card label location
+        self.lbl_cardlocation.config(text = directory)
+        # update the importFolder location
+        self.importFolder = directory
+        # Need to save to shelve
+        settings = shelve.open('settings')
+        settings['import'] = directory
+        settings.close()
+        return None
+
+    def mnuExportDirectory(self):
+        # Ask user for the Export or Library directory
+        directory = filedialog.askdirectory()
+        # update export/library directory exportFolder location
+        self.exportFolder = directory
+        # Need to save the export / library folder location into shelve file
+        settings = shelve.open('settings')
+        settings['export'] = directory
+        settings.close()
+        return None
+
 def directoryCreate(libPath, sundt):
     # takes the Library Root and date to create folders for the copying of Files
     global formload
+    global directories
     dirMainFolder = libPath + "/" + sundt
     os.mkdir(dirMainFolder)
-    dirCapture = dirMainFolder + "/Captured/"
+    dirCapture = dirMainFolder + "/" + directories[0]
     os.mkdir(dirCapture)
-    os.mkdir(dirMainFolder + "/Edited")
-    os.mkdir(dirMainFolder + "/WebReady")
+    os.mkdir(dirMainFolder + "/" + directories[1])
+    os.mkdir(dirMainFolder + "/" + directories[2])
     return dirCapture
 
 def main():
