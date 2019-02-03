@@ -41,6 +41,7 @@ class formLoad:
 
         # Get Applications Settings
         self.loadSettings()
+        self.testCopyFiles = False
 
         # Create Window Widgets
         self.createMenu(master)
@@ -123,7 +124,8 @@ class formLoad:
         self.txt_Year.insert(0, cYear)
 
         # Delete Button
-        self.btn_delete = ttk.Button(self.frame_topbar, text = 'Delete')
+        self.btn_delete = ttk.Button(self.frame_topbar, text = 'Delete',
+                            command = self.cmdDelete)
         self.btn_delete.grid(row = 1, column = 7, rowspan = 2, padx = 20, pady = 5)
 
     def createMenu(self, master):
@@ -162,9 +164,10 @@ class formLoad:
         self.run.add_command(label = 'Copy', command = self.runCopyFiles,
                             accelerator = "Ctrl+C")
         master.bind('<Control-c>', self.runCopyFiles)
-        self.run.add_command(label = 'Delete', command = cnf.runDelete,
+        self.run.add_command(label = 'Delete', command = self.cmdDelete,
                             accelerator = "Ctrl+D")
-        master.bind('<Control-d>', cnf.runDelete)
+        master.bind('<Control-d>', self.cmdDelete)
+
 
         # Edit Menu Items
         self.edit.add_command(label = "Import Directory",
@@ -213,9 +216,6 @@ class formLoad:
                     fill = 'black', width = 2)
 
     def createBodyCanvas(self, filelist):
-        # Testing
-        print('Files in directory: ' + str(len(filelist)))
-        print(filelist)
         # Create new Canvas for Body
         self.filelist = filelist
         self.bodyCanvas = Canvas(self.master)
@@ -233,6 +233,7 @@ class formLoad:
         self.selectedMass = [None]
         self.massCmbo = [None]
         self.homilyEntry = [None]
+        self.fileCopied = [None]
         file_num = 0
         line_height = 20
         defaulthom = hom.clergy[0][0]
@@ -245,6 +246,7 @@ class formLoad:
             self.filename.append(self.bodyCanvas.create_text(113, line_height,
                     text = x, font = ('Courier', 12)))
             self.checkboxval.append(IntVar())
+            self.fileCopied.append(False)
             self.chkbtn.append(ttk.Checkbutton(self.bodyCanvas, text = "add",
                     variable = self.checkboxval[file_num]))
             self.bodyCanvas.create_window(265, line_height, window = self.chkbtn[file_num])
@@ -317,6 +319,7 @@ class formLoad:
         #
         #     # User has already clicked on the Check Card.
         #     # print("Card Already Checked...")
+        self.testCopyFiles = True
         self.folderLibCreated = False
         testImport = False
         file_num = 0
@@ -374,7 +377,12 @@ class formLoad:
                 self.dateSunday = "Sunday: " + fdt + "\n"
                 # Create Directories
                 libPath = self.exportFolder
-                # print("----->>" + str(self.folderLibCreated))
+                # Check to see if the directory has already been created.
+                if path.exists(libPath + "/" + fdt):
+                    # Path Alredy exists need to send up warning to the user
+                    messagebox.showwarning("Directory Already Exists!",
+                                "Unable to process request due to the directory already exists.")
+                    return None
                 if self.folderLibCreated != True:
                     self.capturePath = directoryCreate(libPath, fdt)
                     self.folderLibCreated = True
@@ -382,9 +390,15 @@ class formLoad:
                 # print("----->>>>" + str(self.folderLibCreated))
                 src = self.importFolder + "/" + self.filelist[file_num]
                 dst = self.capturePath + massFileName
+
                 # TODO: Uncomment the following line to actually copy files.
-                # shutil.copyfile(src, dst)
+                shutil.copyfile(src, dst)
+                # Message box that files have not been copied
+                # messagebox.showwarning("Copy Files Disabled",
+                #         "No files were copied while in test mode.")
+
                 # Write out filenames
+                self.fileCopied[file_num + 1] = True
                 self.recordFilenamesMass.append(massFileName + "\n")
                 self.recordFilenamesHomily.append(fileH + "\n")
             else:
@@ -394,11 +408,54 @@ class formLoad:
             file_num = file_num + 1
 
         self.saveFilenameTextFile()
+        print(self.fileCopied)
+        print(self.filelist)
+
+    def cmdDelete(self):
+        # This method deletes files that have already been copied.
+        # But first it must check to see if the file was already copied,
+
+        # Check to see if the "Check Card" command has been run
+        if not self.testCheckCard:
+            # "Check Card" has not been run, no files can be deleted.
+            messagebox.showwarning('Warning!', 'No files have been copied.')
+            return None
+        # Check to see if the user has Copied Files.
+        if not self.testCopyFiles:
+            messagebox.showwarning('Warning!', "You must copy files before deleting them.")
+            return None
+
+        # Process Deleting Files
+        fileDeleted = False
+        file_num = 0
+        for file in self.filelist:
+            if self.fileCopied[file_num + 1]:
+                os.remove(self.importFolder + "/" + file)
+                fileDeleted = True
+                print(file + " has been removed.")
+            file_num = file_num + 1
+        if fileDeleted:
+            messagebox.showinfo("Succes!", "Files have been deleted from card.")
+        else:
+            messagebox.showwarning("File Deletion Failed", "No files were deleted.")
+
+        # Destory the canvas
+        self.killBodyCanvas()
+        # run the "runCheckCard" function to reload a new list of the filesself.
+        self.runCheckCard()
+        print("test Mario")
+        return None
+
+    def killBodyCanvas(self):
+        # need to destroy the bodyCanvas widget
+        self.bodyCanvas.destroy()
+        return None
 
     def menuSelectResetForm(self, event = None):
         if self.iQuite == False:
             print("Reset Form initiated...")
         #testing
+        self.killBodyCanvas()
 
     def menuSelectExit(self, event = None):
         global root
@@ -406,7 +463,7 @@ class formLoad:
 
     def mnuImportDirectory(self):
         # Set the import directory
-        directory = filedialog.askdirectory()
+        directory = filedialog.askdirectory(title = "Select Import Directory")
         # update card label location
         self.lbl_cardlocation.config(text = directory)
         # update the importFolder location
@@ -419,7 +476,7 @@ class formLoad:
 
     def mnuExportDirectory(self):
         # Ask user for the Export or Library directory
-        directory = filedialog.askdirectory()
+        directory = filedialog.askdirectory(title = "Select Export / Library Directory")
         # update export/library directory exportFolder location
         self.exportFolder = directory
         # Need to save the export / library folder location into shelve file

@@ -72,8 +72,7 @@ def menuSelectFileSave(event = None):
     print("Save Mass Info initiated...")
 
 # **** RUN Menu Items
-def runDelete(event = None):
-    print("Running Delete Command...")
+
 
 # Generic Methods
 def testRun(event = None):
