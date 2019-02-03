@@ -2,23 +2,35 @@
 
 ## Features to Add
 
-
-* Make the delete button delete the files on the card.
-
-* Done: 1/31/2019 by Chuck Nelson - Get the commands to set the directory for the card, and library to function
-
-* Done: 1/31/2019 by Chuck Nelson - Get the above directories to save when changed.
+### Still To Do
 
 * Create a labels towards the bottom of the page to house the different directories set to be used.
 
+* The Directories on import feature, can also be used to
+
+### Completed
+
+* DONE: 2/3/2019 by Chuck Nelson - Removed the settings.ini file from the repo as it is no longer being used.
+
+* DONE: 2/3/2019 by Chuck Nelson - Fixed bug where program would stop during the "Copy Files" process. This was caused by the program trying to create a new directory when one already exists. So know it checks to see if the directory already exists and if it does it alerts the user with a message box warning and then exits the method.
+
+* Done: 2/3/2019 by Chuck Nelson - Create the reset form function, have it called when called from the File/Reset Form option. Also have it called after pressing the "Delete" button, but also have it recall the check device right after the destroy.
+
+* Done: 2/2/2019 by Chuck Nelson - Make the delete button delete the files on the card.
+
+* Done: 1/31/2019 by Chuck Nelson - Get the above directories to save when changed.
+
 * DONE: 1/31/2019 by Chuck Nelson - Complete the Save Mass Filenames to file in the directory the files were copied.
 
-* Reset Form Command
+* Done: 1/31/2019 by Chuck Nelson - Get the commands to set the directory for the card, and library to function
 
-* The Directories on import feature, can also be used to
 
 
 ## Other Changes Notes
+
+# 02/2/2019
+
+Added titles to the import and export / library dialogue boxes to identify their purpose.
 
 # 01/31/2019
 
