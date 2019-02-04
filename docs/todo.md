@@ -4,11 +4,15 @@
 
 ### Still To Do
 
-* Create a labels towards the bottom of the page to house the different directories set to be used.
-
 * The Directories on import feature, can also be used to
 
 ### Completed
+
+* Done: 2/3/2019 (v. 0.4) by Chuck Nelson - Created a Status bar at the bottom of the window which contains information, Library Folder, Program Status, and a progress bar that functions while the application is copying files.
+
+* Done: 2/3/2019 (v. 0.4) by Chuck Nelson - Decrease window size to 1280x650.
+
+* Done: 2/3/2019 (v. 0.4) by Chuck Nelson - Removed the "Save Mass Info" menu item from the File menu options. This option is now automatically done after it copies all the selected files over, see version 0.1.
 
 * DONE: 2/3/2019 by Chuck Nelson - Removed the settings.ini file from the repo as it is no longer being used.
 

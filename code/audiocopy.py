@@ -16,6 +16,7 @@ import cnfunc as cnf
 import homilists as hom
 import masses as mas
 import shelve
+import threading
 
 root = Tk()
 directories = []
@@ -26,7 +27,7 @@ class formLoad:
         self.master = master
         self.master.title('Audio Copy - Pro v0.1')
         self.master.resizable(False, False)
-        self.master.geometry("1280x800")
+        self.master.geometry("1280x650")
         self.menubar = Menu(master)
         self.master.config(menu = self.menubar)
         self.iQuite = False
@@ -47,6 +48,7 @@ class formLoad:
         self.createMenu(master)
         self.createTopBar(master)
         self.createHeadCanvas(master)
+        self.createStatusBar(master)
         # self.createHead()
 
     # ****************************************************
@@ -88,7 +90,7 @@ class formLoad:
 
         # Button "Copy Files"
         self.btn_copyfiles = ttk.Button(self.frame_topbar, text = 'Copy Files',
-                        command = self.runCopyFiles)
+                        command = self.startCopyFiles)
         self.btn_copyfiles.grid(row = 1, column = 3, rowspan = 2, padx = 20, pady = 5)
         # Combo Box "Month"
         ttk.Label(self.frame_topbar, text = 'Month').grid(row = 1, column = 4, padx = 20, sticky = "w")
@@ -143,11 +145,6 @@ class formLoad:
         self.menubar.add_cascade(menu = self.help_, label = "Help")
 
         # File Menu Items
-        self.file.add_command(label = "Save Mass Info",
-            command = cnf.menuSelectFileSave, accelerator = 'Ctrl+S')
-        master.bind('<Control-s>', cnf.menuSelectFileSave)
-        #self.file.entryconfig('Save Mass Info', accelerator = 'Ctrl+s')
-        self.file.add_separator()
         self.file.add_command(label = "Reset Form",
                     command = self.menuSelectResetForm, accelerator = 'Ctrl-R')
         master.bind('<Control-r>', self.menuSelectResetForm)
@@ -161,9 +158,9 @@ class formLoad:
         self.run.add_command(label = "Check Card", command = self.runCheckCard,
                             accelerator = 'Ctrl-H')
         master.bind('<Control-h>', self.runCheckCard)
-        self.run.add_command(label = 'Copy', command = self.runCopyFiles,
+        self.run.add_command(label = 'Copy', command = self.startCopyFiles,
                             accelerator = "Ctrl+C")
-        master.bind('<Control-c>', self.runCopyFiles)
+        master.bind('<Control-c>', self.startCopyFiles)
         self.run.add_command(label = 'Delete', command = self.cmdDelete,
                             accelerator = "Ctrl+D")
         master.bind('<Control-d>', self.cmdDelete)
@@ -269,18 +266,48 @@ class formLoad:
 
         self.testCheckCard = True
 
+    def createStatusBar(self, master):
+        self.statusBar = Canvas(self.master, width = 1100, height = 25,
+                bd = 3, relief=SUNKEN)
+        self.statusBar.pack(side=BOTTOM, fill=X)
+        # Library Path Display in Status Bar
+        self.librarySBText = "Library: " + self.exportFolder
+        self.librarySB = self.statusBar.create_text(10,20, text = self.librarySBText,
+            font = ('Courier', 10, 'bold'), anchor=W)
+        # Vertical Line
+        self.sepLine1 = self.statusBar.create_line(500, 0, 500, 25,
+            fill = 'black', width=2)
+        # Program Status
+        self.status = "Status: Awaiting Orders, Captain"
+        self.statusLabel = self.statusBar.create_text(510, 18, text = self.status,
+            font = ('Courier', 10, 'bold'), anchor=W)
+        # Vertical Line
+        self.sepLine1 = self.statusBar.create_line(1025, 0, 1025, 25,
+            fill = 'black', width=2)
+        # Progress Bar
+        self.progressText = self.statusBar.create_text(1035, 18, text = 'Progress:',
+            font = ('Courier', 10, 'bold'), anchor=W)
+        self.progressBar = ttk.Progressbar(self.statusBar, orient = HORIZONTAL,
+            length = 150)
+        self.statusBar.create_window(1185, 19, window = self.progressBar)
+        return None
+
     # ****************************************************
     # ***          Interacting with Widgets            ***
     # ****************************************************
 
     def runCheckCard(self, event = None):
         # get directory from import app seetting
+        self.status = "Status: Checking Card . . ."
+        self.statusBar.itemconfig(self.statusLabel, text=self.status)
         directory = self.importFolder
         print(directory)
         # get list of files
         filelist = os.listdir(directory)
         # Call the createBodyCanvas to create list of files.
         self.createBodyCanvas(filelist)
+        self.status = "Status: Card Checked"
+        self.statusBar.itemconfig(self.statusLabel, text=self.status)
 
     def saveFilenameTextFile(self):
         # Saves the actual filenames text file out to a file
@@ -304,6 +331,15 @@ class formLoad:
             file.write(contentLine)
         file.close()
 
+    def startCopyFiles(self):
+        # Change the status bar's status label
+        self.status = "Status: Copying Files ..."
+        self.statusBar.itemconfig(self.statusLabel, text=self.status)
+        self.progressBar.config(mode = 'indeterminate')
+        self.progressBar.start()
+        self.thread = threading.Thread(target = self.runCopyFiles, name = "CopyThread")
+        self.thread.start()
+
     def runCopyFiles(self, event = None):
         # Starts the process of copying files over, but first
         # Test if the user has check the card for files, which therefore would
@@ -326,6 +362,39 @@ class formLoad:
         files = self.filelist
         self.recordFilenamesMass = []
 
+        # get Date information
+        dm = cnf.getMonthFromText(self.month.get())
+
+        dd = int(self.day.get())
+        dy = self.txt_Year.get()
+
+        fdt = dm + "-" + str(dd) + "-" + dy
+
+        # process for Saturday Morning Mass
+        if dd == 1:
+            datedata = cnf.getMonthDays(dm, dy)
+            fsatd = str(datedata[0])
+            dy = str(datedata[1])
+            dm = str(datedata[2])
+            fsdt = dm + "-" + fsatd + "-" + dy
+        else:
+            fsat = str(dd - 1)
+            fsdt = dm + "-" + fsat + "-" + dy
+        # print("<<< Import Notes for copy>>")
+        # print("Date: " + fdt)
+        # print("File to be imported: " + files[file_num])
+
+        # Create Directories
+        libPath = self.exportFolder
+
+        # Check to see if the directory has already been created.
+        if path.exists(libPath + "/" + fdt):
+            # Path Alredy exists need to send up warning to the user
+            messagebox.showwarning("Directory Already Exists!",
+                        "Unable to process request due to the directory already exists.")
+            self.progressBar.stop()
+            return None
+
         self.recordFilenamesHomily = []
         # print(files)
         for x in files:
@@ -335,31 +404,12 @@ class formLoad:
             if self.checkboxval[file_num + 1].get() == 1:
                 # print('File Selected')
 
-                dm = cnf.getMonthFromText(self.month.get())
-
-                dd = int(self.day.get())
-                dy = self.txt_Year.get()
-
                 fimport = self.checkboxval[file_num + 1].get()
                 sclergy = self.clergy[file_num + 1].get()
                 smass = self.mass[file_num + 1].get()
                 fmass = mas.getMassFileName(smass)
                 fclergy = hom.getClergyFileName(sclergy)
-                fdt = dm + "-" + str(dd) + "-" + dy
 
-                # process for Saturday Morning Mass
-                if dd == 1:
-                    datedata = cnf.getMonthDays(dm, dy)
-                    fsatd = str(datedata[0])
-                    dy = str(datedata[1])
-                    dm = str(datedata[2])
-                    fsdt = dm + "-" + fsatd + "-" + dy
-                else:
-                    fsat = str(dd - 1)
-                    fsdt = dm + "-" + fsat + "-" + dy
-                # print("<<< Import Notes for copy>>")
-                # print("Date: " + fdt)
-                # print("File to be imported: " + files[file_num])
                 if smass == "Sat 5pm":
                     massFileName =  "smk_Mass_" + fsdt + "_" + fmass + ".wav"
                 else:
@@ -375,14 +425,7 @@ class formLoad:
                 # Record Dates in Filename Text File
                 self.dateSaturday = "Saturday: " + fsdt + "\n"
                 self.dateSunday = "Sunday: " + fdt + "\n"
-                # Create Directories
-                libPath = self.exportFolder
-                # Check to see if the directory has already been created.
-                if path.exists(libPath + "/" + fdt):
-                    # Path Alredy exists need to send up warning to the user
-                    messagebox.showwarning("Directory Already Exists!",
-                                "Unable to process request due to the directory already exists.")
-                    return None
+
                 if self.folderLibCreated != True:
                     self.capturePath = directoryCreate(libPath, fdt)
                     self.folderLibCreated = True
@@ -390,6 +433,7 @@ class formLoad:
                 # print("----->>>>" + str(self.folderLibCreated))
                 src = self.importFolder + "/" + self.filelist[file_num]
                 dst = self.capturePath + massFileName
+                # print(self.filelist[file_num] + " -- " + src + " -- " + dst)
 
                 # TODO: Uncomment the following line to actually copy files.
                 shutil.copyfile(src, dst)
@@ -408,8 +452,17 @@ class formLoad:
             file_num = file_num + 1
 
         self.saveFilenameTextFile()
+
+        # Change the status bar's status label
+        self.status = "Status: File Copying Finished."
+        self.statusBar.itemconfig(self.statusLabel, text=self.status)
+
+        # Stop the progress bar
+        self.progressBar.stop()
+
         print(self.fileCopied)
         print(self.filelist)
+
 
     def cmdDelete(self):
         # This method deletes files that have already been copied.
@@ -424,6 +477,10 @@ class formLoad:
         if not self.testCopyFiles:
             messagebox.showwarning('Warning!', "You must copy files before deleting them.")
             return None
+
+        # Change the status bar.
+        self.status = "Status: Deleting Files from card ..."
+        self.statusBar.itemconfig(self.statusLabel, text=self.status)
 
         # Process Deleting Files
         fileDeleted = False
@@ -443,12 +500,20 @@ class formLoad:
         self.killBodyCanvas()
         # run the "runCheckCard" function to reload a new list of the filesself.
         self.runCheckCard()
-        print("test Mario")
+
+        # update the programs status in the status bar
+        self.status = "Status: Files Deleted"
+        self.statusBar.itemconfig(self.statusLabel, text=self.status)
+
         return None
 
     def killBodyCanvas(self):
         # need to destroy the bodyCanvas widget
         self.bodyCanvas.destroy()
+
+        # Change the status bar's status label
+        self.status = "Status: Reset Application"
+        self.statusBar.itemconfig(self.statusLabel, text=self.status)
         return None
 
     def menuSelectResetForm(self, event = None):
@@ -483,6 +548,10 @@ class formLoad:
         settings = shelve.open('settings')
         settings['export'] = directory
         settings.close()
+
+        # update library label in status bar.
+        self.librarySBText = "Library: " + directory
+        self.statusBar.itemconfig(self.librarySB, text=self.librarySBText)
         return None
 
 def directoryCreate(libPath, sundt):
